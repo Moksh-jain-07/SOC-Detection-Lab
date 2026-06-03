@@ -1,0 +1,35 @@
+# Detection — Registry Run Key Persistence (T1547.001)
+
+## What This Detects
+Modifications to Windows registry Run, RunOnce, and Winlogon keys.
+These keys are commonly abused by malware to automatically execute
+on system startup or user login.
+
+## SPL Query
+
+```spl
+index=soc-lab sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+| rex field=_raw "<Data Name='TargetObject'>(?<TargetObject>[^<]+)"
+| rex field=_raw "<Data Name='EventType'>(?<EventType>[^<]+)"
+| rex field=_raw "<EventID>(?<EventID>[^<]+)"
+| where EventID="13" AND (like(TargetObject, "%Run%") OR like(TargetObject, "%RunOnce%") OR like(TargetObject, "%Winlogon%"))
+| table _time, EventType, TargetObject
+| sort -_time
+```
+
+## Sysmon Event ID
+- **Event ID 13** — Registry Value Set
+
+## Key Registry Paths to Watch
+- `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
+- `HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
+- `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce`
+- `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell`
+- `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\Userinit`
+
+## Alert Settings
+- Alert Name: Registry Persistence Detected
+- Type: Real-time
+- Trigger: Number of results greater than 0
+- Severity: High
+```

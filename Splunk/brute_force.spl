@@ -1,0 +1,43 @@
+# Detection — Brute Force Login Attempts (T1110.001)
+
+## What This Detects
+Multiple failed login attempts against a Windows account.
+Event ID 4625 is generated every time an authentication attempt fails,
+making it reliable for detecting brute force and password spraying attacks.
+
+## SPL Query
+
+```spl
+index=soc-lab sourcetype="WinEventLog:Security"
+| rex field=_raw "EventCode=(?<EventCode>\d+)"
+| where EventCode="4625"
+| rex field=_raw "Account Name:\s+(?<AccountName>\S+)"
+| table _time, EventCode, AccountName
+| sort -_time
+```
+
+## Windows Security Event ID
+- **Event ID 4625** — An account failed to log on
+
+## Improving This Detection
+To make this more robust, add a threshold — for example, more than 5 failures
+in 1 minute from the same source is more likely to be a brute force than
+a user mistyping their password:
+
+```spl
+index=soc-lab sourcetype="WinEventLog:Security"
+| rex field=_raw "EventCode=(?<EventCode>\d+)"
+| where EventCode="4625"
+| rex field=_raw "Account Name:\s+(?<AccountName>\S+)"
+| bucket _time span=1m
+| stats count by _time, AccountName
+| where count > 5
+| sort -_time
+```
+
+## Alert Settings
+- Alert Name: Brute Force Login Detected
+- Type: Real-time
+- Trigger: Number of results greater than 0
+- Severity: High
+```

@@ -1,0 +1,33 @@
+# Detection — Scheduled Task Persistence (T1053.005)
+
+## What This Detects
+Execution of schtasks.exe to create or run scheduled tasks.
+Attackers use scheduled tasks to maintain persistence so their
+malware survives reboots and user logoffs.
+
+## SPL Query
+
+```spl
+index=soc-lab sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+| rex field=_raw "<Data Name='Image'>(?<Image>[^<]+)"
+| rex field=_raw "<Data Name='CommandLine'>(?<CommandLine>[^<]+)"
+| rex field=_raw "<EventID>(?<EventID>[^<]+)"
+| where EventID="1" AND (like(CommandLine, "%schtasks%") OR like(CommandLine, "%AtomicTask%") OR like(CommandLine, "%T1053%"))
+| table _time, Image, CommandLine
+| sort -_time
+```
+
+## Sysmon Event ID
+- **Event ID 1** — Process Creation
+
+## Key Indicators
+- schtasks.exe spawned with /Create or /Run arguments
+- Tasks scheduled at OnLogon or OnStartup
+- Tasks running cmd.exe or powershell.exe as the action
+
+## Alert Settings
+- Alert Name: Scheduled Task Persistence Detected
+- Type: Real-time
+- Trigger: Number of results greater than 0
+- Severity: High
+```

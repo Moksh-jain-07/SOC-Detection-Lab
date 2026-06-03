@@ -1,0 +1,33 @@
+# Detection — Encoded PowerShell Execution (T1059.001)
+
+## What This Detects
+PowerShell processes launched with encoded commands using `-enc` or `-EncodedCommand`.
+This is a common obfuscation technique where attackers base64-encode malicious payloads
+to bypass basic string-based detections.
+
+## SPL Query
+
+```spl
+index=soc-lab sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"
+| rex field=_raw "<Data Name='Image'>(?<Image>[^<]+)"
+| rex field=_raw "<Data Name='CommandLine'>(?<CommandLine>[^<]+)"
+| rex field=_raw "<EventID>(?<EventID>[^<]+)"
+| where EventID="1" AND (like(CommandLine, "%-enc%") OR like(CommandLine, "%EncodedCommand%"))
+| table _time, Image, CommandLine
+| sort -_time
+```
+
+## Sysmon Event ID
+- **Event ID 1** — Process Creation
+
+## Why rex Is Used
+Sysmon logs ingested as XmlWinEventLog format store fields inside raw XML.
+Splunk does not auto-parse them, so rex commands are used to extract
+Image and CommandLine from the raw event data.
+
+## Alert Settings
+- Alert Name: Encoded PowerShell Detected
+- Type: Real-time
+- Trigger: Number of results greater than 0
+- Severity: High
+```
